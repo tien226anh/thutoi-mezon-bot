@@ -1,12 +1,10 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 import { TABLENAME } from '../constants/tableName';
 
-@Index([
-  'id',
-])
+@Index(['id'])
 @Entity(TABLENAME.USERS)
 export class UserEntity {
-  @PrimaryColumn
+  @PrimaryColumn()
   id: string;
 
   @Column({
