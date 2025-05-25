@@ -2,33 +2,37 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
-import { ValidatedConfigProvider } from './configs/config.provider';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { ValidatedConfigService } from './configs/validated-config.service';
-import { AppRootConfig } from './configs/schemas';
+import configFiles, { envSchema } from './config';
+import { MezonBotModule } from './mezon-bot/mezon-bot.module';
+import { MezonModule } from './mezon/mezon.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-    }),
-    TypeOrmModule.forRootAsync({
-      inject: [ValidatedConfigService],
-      useFactory: (config: ValidatedConfigService<AppRootConfig>) => {
-        const databaseConfig = config.get('database');
-        return {
-          type: "postgres",
-          host: databaseConfig.host,
-          port: databaseConfig.port,
-          username: databaseConfig.user,
-          password: databaseConfig.pass,
-          name: databaseConfig.name,
-        };
+      load: configFiles,
+      validationSchema: envSchema,
+      validationOptions: {
+        abortEarly: false,
       },
+      validate: (config) => {
+        const parsed = envSchema.safeParse(config);
+        if (!parsed.success) {
+          throw new Error(
+            `Config validation error: ${JSON.stringify(parsed.error.format())}`,
+          );
+        }
+        return parsed.data;
+      },
+      envFilePath: ['.env', `.env.${process.env.NODE_ENV || 'development'}`],
+      // ignoreEnvFile: process.env.NODE_ENV === 'production',
     }),
+    MezonModule.forRootAsync({
+      imports: [ConfigModule],
+    }),
+    MezonBotModule,
   ],
   controllers: [AppController],
-  providers: [AppService, ValidatedConfigProvider],
-  exports: [ValidatedConfigProvider],
+  providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}
